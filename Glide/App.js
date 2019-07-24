@@ -1,114 +1,239 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow
- */
-
-import React, {Fragment} from 'react';
+import React, { Component } from 'react';
+import details from './Src/details'
 import {
-  SafeAreaView,
-  StyleSheet,
-  ScrollView,
   View,
   Text,
-  StatusBar,
+  StyleSheet,
+  TextInput,
+  FlatList,
+  Image,
+  Modal,
+  ActivityIndicator,
+  TouchableOpacity,
+  Dimensions
 } from 'react-native';
+import HttpUtill from './Src/Common/HttpUtils/httpUtils'
+import {FETCH_POPULAR_MOVIE , FETCH_MOVIE_LIST , FETCH_HEIGHEST_RATED_MOVIE} from './Src/Common/HttpUtils/constant'
+var tempArray=[]
+const screenWidth = Dimensions.get('window').width
+const screenHeight = Dimensions.get('window').height
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import {createAppContainer , createStackNavigator} from 'react-navigation'
+class Home extends Component {
+  constructor(props){
+    super(props)
+    this.state={
+      isVisible:false,
+      spinner:true,
+      dataArray:'',
+      ratePage:0,
+      rate:false,
+      popularPage:0,
+      popular:false,
+      page:1,
+      sortBy:''
+    }
+  }
+ static navigationOptions = {
+    header: null
+  }
+  renderItem=(item)=>{
+    return(
+     <View style={{flex:1 , justifyContent:'center', alignItems:'center', marginTop:5 }}>
+       <TouchableOpacity onPress={() => this.props.navigation.navigate('Details', {data:item})}>
+        <Image 
+      style={{width:screenWidth*0.46, height:screenHeight*0.3,       
+      alignSelf: 'center',
+    }}
+    resizeMode='cover'
+    source={{uri: item.item.backdrop_path?`https://image.tmdb.org/t/p/w500/${item.item.backdrop_path}`:`https://image.tmdb.org/t/p/w500/${item.item.poster_path}`}}
+      />
+      <Text 
+      numberOfLines={1}
+      style={{textAlign:"center", marginBottom:10 , fontWeight:'bold', fontSize:16}}>{item.item.original_title}</Text>
+      </TouchableOpacity>
+     </View>)
+  }
+  componentDidMount=()=>{
+    this.fetchMovieList()
+  }
 
-const App = () => {
-  return (
-    <Fragment>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
+  fetchMovieList=()=>{
+    let mThis = this
+    let url = FETCH_MOVIE_LIST+this.state.page
+    HttpUtill.getAPICallWithHeader(url , function(onSuccess){
+      if(onSuccess.length<=3){
+        tempArray.push(...onSuccess)
+        mThis.setState({page: mThis.state.page + 1},()=>{mThis.fetchMovieList()})  
+      }
+      else{
+        tempArray.push(...onSuccess)
+        mThis.setState({spinner: false , dataArray: tempArray})
+      }
+    }, 
+    function(onFailure){
+      mThis.handleLoadMore()
+   console.log(onFailure)
+    })
+  }
+
+  handleLoadMore = () => {
+    this.setState({page: this.state.page + 1}, () => {
+      this.fetchMovieList();
+    });
+  };
+
+  fetchHeighestPopular=()=>{
+    var mThis=this
+    this.setState({page:this.state.page +1},()=>{
+      let url = FETCH_POPULAR_MOVIE+this.state.page 
+      HttpUtill.getAPICallWithoutHeader(url , function(onSuccess){
+        if(onSuccess.length<=3){
+          tempArray.push(...onSuccess)
+          mThis.setState({page: mThis.state.page + 1},()=>{mThis.fetchHeighestPopular()})  
+        }  else{
+          tempArray.push(...onSuccess)
+          mThis.setState({spinner: false , dataArray: tempArray})
+        }
+      }, 
+      function(onFailure){
+        mThis.setState({page: mThis.state.page + 1},()=>{
+          mThis.fetchHeighestPopular()
+        })
+        console.log(onFailure)   
+      }
+      )
+    })
+  }
+  
+  heighestPopular=()=>{
+  let mThis = this
+  tempArray=[]
+  this.setState({sortBy:"Most Popular",rate:false,popular:true,spinner:true , isVisible:!this.state.isVisible ,page:0, dataArray:tempArray},()=>{
+    mThis.fetchHeighestPopular()
+  })
+  }
+
+  fetchHeighestRated=()=>{
+    var mThis=this
+    this.setState({page:this.state.page +1},()=>{
+      let url = FETCH_HEIGHEST_RATED_MOVIE+this.state.page 
+      HttpUtill.getAPICallWithoutHeader(url , function(onSuccess){
+        if(onSuccess.length<=3){
+          tempArray.push(...onSuccess)
+          mThis.setState({page: mThis.state.page + 1},()=>{mThis.fetchHeighestRated()})  
+        }  else{
+          tempArray.push(...onSuccess)
+          mThis.setState({spinner: false , dataArray: tempArray})
+        }
+      }, 
+      function(onFailure){
+        mThis.setState({page: mThis.state.page + 1},()=>{
+          mThis.fetchHeighestRated()
+        })
+        console.log(onFailure)   
+      }
+      )
+    })
+  }
+
+  heighestRated=()=>{
+    let mThis = this
+  tempArray=[]
+  this.setState({sortBy:"Heighest Rated",popular:false,rate:true,spinner:true , isVisible:!this.state.isVisible ,page:0, dataArray:tempArray},()=>{
+    mThis.fetchHeighestRated()
+  })
+  }
+  render() {
+    return (
+      <View style={{flex:1}}>
+        {this.state.spinner?<View style={{justifyContent:'center', alignItems:'center', flex:1}}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        </View>:
+        <View style={styles.main}>
+     <View style={{marginTop:30, height:"5%", width:"100%", justifyContent:'center',flexDirection:'row', alignItems:'center' }}>
+     <Text style={{fontWeight:'bold', fontSize:25 , color:'#008B8B'}}>Movie List </Text>
+     <TouchableOpacity onPress = {() => {this.setState({ isVisible: true})}} style={{position:'absolute', right:10}}>
+      <Image 
+      style={{width:25 , height:25}}
+      source = {require('./Src/Common/Image/settingIcon.png')} 
+      />
+      </TouchableOpacity>
+     </View>
+    {this.state.sortBy==""?null:
+     <Text style={{fontWeight:'bold', fontSize:14 , color:'#008B8B'}}>Sort By: 
+     <Text style={{fontWeight:'bold', fontSize:18 , color:'#008B8B'}}>{ this.state.sortBy} </Text>
+     </Text>
+    }
+     <Modal visible={this.state.isVisible}
+     transparent={true}
+     >
+      <TouchableOpacity  style={{flex:1}} onPress={()=>{this.setState({isVisible:false})}}>
+     <View style={{backgroundColor:'black', marginTop:30, height:"15%", width:"40%", justifyContent:'center', alignItems:'center', position:'absolute', right:10,}}>
+          <View style={{width:'100%', height:'30%', justifyContent:'center', alignItems:'center',}}>
+             <Text style={{fontWeight:'bold', fontSize:18 , color:'white'}}>Sort By:</Text>
+           </View>
+           <View style={{width:'100%', height:1}}></View>
+           <View style={{width:'100%', height:'35%',justifyContent:'center', alignItems:'center',}}>
+           <TouchableOpacity
+            style={{width:'100%', height:'100%', justifyContent:'center', alignItems:'center'}}
+            onPress={()=>this.heighestPopular()}>
+             <Text style={{fontWeight:'bold', fontSize:18 , color:'white'}}>Most Popular</Text>
+             </TouchableOpacity>  
+           </View>
+           
+           <View style={{width:'100%', height:'35%' }}>
+            <TouchableOpacity
+            style={{width:'100%', height:'100%', justifyContent:'center', alignItems:'center'}}
+            onPress={()=>this.heighestRated()}>
+              <Text style={{fontWeight:'bold', fontSize:18 , color:'white'}}>Heighest Rated</Text>
+            </TouchableOpacity>         
             </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits. by Mukesh 
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Fragment>
-  );
-};
+      </View>
+      </TouchableOpacity>
+        </Modal>
+  
+     <View style={{  width:"100%"  }}>
+     <FlatList
+   data={this.state.dataArray}
+   renderItem={this.renderItem}
+   keyExtractor={(item , index)=>index}
+   numColumns={2}
+   //onMomentumScrollEnd={()=>console.log("onEnd call")}
+   onEndReachedThreshold={0.05}
+   onEndReached={(distanceFromEnd)=>{
+     if(this.state.popular){
+       this.fetchHeighestPopular()
+     }else if(this.state.rate){
+       this.fetchHeighestRated()
+     }else{
+     this.handleLoadMore()
+     console.log("reached"+JSON.stringify(distanceFromEnd) )
+     }
+   }
+  }
+   />
+     </View>
+     </View>
+        }
+      </View>
+      
+    )
+  }
+}
+const AppNavigator = createStackNavigator({
+  Home: {
+    screen: Home
+  },
+  Details: {screen:details}
+});
+export default createAppContainer(AppNavigator);
 
 const styles = StyleSheet.create({
-  scrollView: {
-    backgroundColor: Colors.lighter,
-  },
-  engine: {
-    position: 'absolute',
-    right: 0,
-  },
-  body: {
-    backgroundColor: Colors.white,
-  },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.black,
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-    color: Colors.dark,
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-  footer: {
-    color: Colors.dark,
-    fontSize: 12,
-    fontWeight: '600',
-    padding: 4,
-    paddingRight: 12,
-    textAlign: 'right',
-  },
+main:{
+ flex:1,
+ alignItems:'center',
+ paddingHorizontal:5,
+ backgroundColor:"#E0E0E0"
+},
 });
-
-export default App;
