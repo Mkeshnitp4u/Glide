@@ -4,14 +4,14 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   FlatList,
   Image,
   Modal,
   ActivityIndicator,
   TouchableOpacity,
-  Dimensions
+  Dimensions,
 } from 'react-native';
+import {SearchBar} from 'react-native-elements'
 import HttpUtill from './Src/Common/HttpUtils/httpUtils'
 import {FETCH_POPULAR_MOVIE , FETCH_MOVIE_LIST , FETCH_HEIGHEST_RATED_MOVIE} from './Src/Common/HttpUtils/constant'
 var tempArray=[]
@@ -31,15 +31,56 @@ class Home extends Component {
       popularPage:0,
       popular:false,
       page:1,
-      sortBy:''
+      sortBy:'',
+      search:'',
+      showFullList:true,
+      dataSearch:false
     }
   }
  static navigationOptions = {
     header: null
   }
+  updateSearch = search => {
+    this.setState({ search });
+  };
+  renderHeader=()=>{
+    const { search } = this.state;
+
+    return(
+    <SearchBar
+    ref={search => this.search = search}
+    inputContainerStyle={{backgroundColor:'#FFFFFF'}}
+    containerStyle={{backgroundColor:'#E0E0E0'}}
+    lightTheme={true}
+    round={true}
+    placeholder="Type Here..."
+    onChangeText={text => this.SearchFilterFunction(text)}   
+    value={search}
+    />
+      )
+  }
+
+  SearchFilterFunction=(text)=> {
+    const newData = tempArray.filter(function(item) {
+      const itemData = item.original_title ? item.original_title.toUpperCase() : ''.toUpperCase();
+      const textData = text.toUpperCase();
+      return itemData.indexOf(textData) > -1;
+    });
+    this.setState({
+      //setting the filtered newData on datasource
+      //After setting the data it will automatically re-render the view
+      dataSearch:true,
+      dataArray: newData,
+      search:text,
+    });
+  }
+  // ListViewItemSeparator=()=>{
+  //   this.setState({showFullList:false},()=>{tempArray= this.state.dataSource})
+
+  // }
   renderItem=(item)=>{
     return(
-     <View style={{flex:1 , justifyContent:'center', alignItems:'center', marginTop:5 }}>
+     <View style={{flex:1 , flexDirection:'row' }}>
        <TouchableOpacity onPress={() => this.props.navigation.navigate('Details', {data:item})}>
         <Image 
       style={{width:screenWidth*0.46, height:screenHeight*0.3,       
@@ -78,7 +119,7 @@ class Home extends Component {
   }
 
   handleLoadMore = () => {
-    this.setState({page: this.state.page + 1}, () => {
+    this.setState({page: this.state.page + 1 , dataSearch:false}, () => {
       this.fetchMovieList();
     });
   };
@@ -105,11 +146,11 @@ class Home extends Component {
       )
     })
   }
-  
+
   heighestPopular=()=>{
   let mThis = this
   tempArray=[]
-  this.setState({sortBy:"Most Popular",rate:false,popular:true,spinner:true , isVisible:!this.state.isVisible ,page:0, dataArray:tempArray},()=>{
+  this.setState({sortBy:"Most Popular",dataSearch:false ,rate:false,popular:true,spinner:true , isVisible:!this.state.isVisible ,page:0, dataArray:tempArray},()=>{
     mThis.fetchHeighestPopular()
   })
   }
@@ -140,10 +181,11 @@ class Home extends Component {
   heighestRated=()=>{
     let mThis = this
   tempArray=[]
-  this.setState({sortBy:"Heighest Rated",popular:false,rate:true,spinner:true , isVisible:!this.state.isVisible ,page:0, dataArray:tempArray},()=>{
+  this.setState({sortBy:"Heighest Rated",dataSearch:false,popular:false,rate:true,spinner:true , isVisible:!this.state.isVisible ,page:0, dataArray:tempArray},()=>{
     mThis.fetchHeighestRated()
   })
   }
+
   render() {
     return (
       <View style={{flex:1}}>
@@ -181,7 +223,6 @@ class Home extends Component {
              <Text style={{fontWeight:'bold', fontSize:18 , color:'white'}}>Most Popular</Text>
              </TouchableOpacity>  
            </View>
-           
            <View style={{width:'100%', height:'35%' }}>
             <TouchableOpacity
             style={{width:'100%', height:'100%', justifyContent:'center', alignItems:'center'}}
@@ -192,24 +233,28 @@ class Home extends Component {
       </View>
       </TouchableOpacity>
         </Modal>
-  
      <View style={{  width:"100%"  }}>
      <FlatList
    data={this.state.dataArray}
+   //ItemSeparatorComponent={this.state.dataSource && this.ListViewItemSeparator()}
    renderItem={this.renderItem}
    keyExtractor={(item , index)=>index}
    numColumns={2}
-   //onMomentumScrollEnd={()=>console.log("onEnd call")}
+   stickyHeaderIndices={[0]}
    onEndReachedThreshold={0.05}
+   ListHeaderComponent = {this.renderHeader()}
+   onCancel={()=>this.setState({dataArray:tempArray ,search:''})}
    onEndReached={(distanceFromEnd)=>{
-     if(this.state.popular){
-       this.fetchHeighestPopular()
-     }else if(this.state.rate){
-       this.fetchHeighestRated()
-     }else{
-     this.handleLoadMore()
-     console.log("reached"+JSON.stringify(distanceFromEnd) )
+     if(!this.state.dataSearch){
+      if(this.state.popular){
+        this.fetchHeighestPopular()
+      }else if(this.state.rate){
+        this.fetchHeighestRated()
+      }else{
+      this.handleLoadMore()
+      }
      }
+    
    }
   }
    />
